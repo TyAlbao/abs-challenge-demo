@@ -70,7 +70,7 @@ if "incorrect_call_prob" in st.session_state:
     st.header("Step 2: Challenge Decision")
     st.markdown(
         "ℹ️ **Note:** The features you entered in Step 1 "
-        "(umpire, pitch type, pitch location, count, etc.) "
+        "(inning, outs, balls, strikes) "
         "are automatically carried over into this step. "
         "Here, you’re adding the broader **game context** "
         "needed to decide whether to challenge."
