@@ -91,8 +91,6 @@ def process_states(merged, feature_cols_wpm, cs, cb, outs, s, inn, diff, b, tb, 
     return S, O, S_l, O_l, S_w, O_w
 
 def add_win_prob_future_states(df, wp_model, feature_cols_wpm):
-    if df.empty:
-        return df
     # Predict raw win probability from features
     df['wp_raw'] = wp_model.predict_proba(df[feature_cols_wpm])[:, 1]
 

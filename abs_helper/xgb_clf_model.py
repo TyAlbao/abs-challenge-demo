@@ -1,7 +1,7 @@
 # abs_helper/modeling/xgb.py
 import numpy as np
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit, GroupKFold
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from xgboost import XGBClassifier

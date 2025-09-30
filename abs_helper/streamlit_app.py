@@ -11,10 +11,10 @@ st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo")
 @st.cache_resource
 def load_interface():
     return ABSInterface(
-        "../saved_models/mcm_calib.pkl",
-        "../saved_models/wpm_calib.pkl",
-        "../saved_dcts/ump_name_dct.json",
-        "../saved_dcts/ump_zone_acc.joblib"
+        "saved_models/mcm_calib.pkl",
+        "saved_models/wpm_calib.pkl",
+        "saved_dcts/ump_name_dct.json",
+        "saved_dcts/ump_zone_acc.joblib"
     )
 
 abs_ui = load_interface()
