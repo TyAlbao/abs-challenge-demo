@@ -29,6 +29,10 @@ umpire = st.selectbox(
     options=list(abs_ui.helper.ump_name_dct.keys()),
     format_func=lambda x: abs_ui.helper.ump_name_dct[x]
 )
+
+st.markdown(
+    "[See MLB’s official glossary of pitch types](https://www.mlb.com/glossary/pitch-types)"
+)
 pitch_type = st.selectbox("Pitch Type", ['FF', 'CH', 'SI', 'SL', 'CU', 'KC', 'ST', 'FC', 'KN', 'FS', 'SV','FA', 'EP', 'SC', 'FO', 'CS'])
 pitch_loc = st.selectbox("Pitch Location", ["high_away", "high_middle", "high_inside",
                                             "mid_away", "mid_middle", "mid_inside",
