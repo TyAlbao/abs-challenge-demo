@@ -1,383 +1,52 @@
-# import pandas as pd
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import plotly.express as px
-# from pybaseball import statcast
-# import seaborn as sns
-# import requests
-# from matplotlib.colors import TwoSlopeNorm
+"""
+abs_helper.py
+-----------------
+Main helper module for the Automated Ball-Strike (ABS) Challenge system.
 
-# from sklearn.compose import ColumnTransformer
-# from sklearn.preprocessing import OneHotEncoder
-# from sklearn.pipeline import Pipeline
-# from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit, GroupKFold, train_test_split
-# from sklearn.metrics import roc_auc_score, log_loss, make_scorer
-# from sklearn.linear_model import LogisticRegression
-# from xgboost import XGBClassifier
-# from scipy.stats import randint, loguniform, uniform
-# from sklearn.metrics import f1_score, confusion_matrix, classification_report, brier_score_loss, average_precision_score
-# import joblib
+Responsibilities:
+- Loading and managing models and umpire data
+- Predicting incorrect call probability (MCM)
+- Predicting win probability and ΔWE (WPM)
+- Providing visualization utilities (umpire zone heatmaps)
+"""
 
-# # import sys, os
-# # sys.path.append(os.path.abspath(".."))  # parent of "notebooks"
-# from .modeling.xgb_clf_model import train_xgb
-
-
-
-# # Plate is 17 inches wide → half-width in feet
-# PLATE_HALF_WIDTH = (17 / 2) / 12
-
-# # Ball diameter ~2.86 inches → radius in feet
-# BALL_RADIUS = (2.86 / 2) / 12
-
-
-# class ABSHelper:
-#     def __init__(self, raw_df):
-#         self.raw_df = raw_df
-#         self.df = pd.DataFrame()
-#         self.ump_name_dct = dict()
-#         self.ump_game_dct = dict()
-
-#     @staticmethod
-#     def _find_hp_ump_idx(officals_lst):
-#         for i in range(len(officals_lst)):
-#             if 'Home Plate' in officals_lst[i].values():
-#                 return i
-    
-#     @staticmethod
-#     def _get_hp_ump_dct(games):
-#         game_ump_map = dict()
-
-#         for game in games:
-#             url = f'https://statsapi.mlb.com/api/v1/game/{game}/boxscore'
-#             r = requests.get(url, timeout=10).json()
-#             hp_ump_idx = 0
-#             misidx=0
-#             officials_values = r['officials'][hp_ump_idx].values()
-#             if 'Home Plate' not in officials_values:
-#                 hp_ump_idx = ABSHelper._find_hp_ump_idx(r['officials'])
-#                 misidx+=1
-
-#             hp_ump = r['officials'][hp_ump_idx]
-#             hp_ump_id = hp_ump['official']['id']
-#             hp_ump_name = hp_ump['official']['fullName']
-
-#             game_ump_map[int(game)] = {'id': hp_ump_id, 'name': hp_ump_name}
-        
-#         return game_ump_map
-    
-#     @staticmethod
-#     def _ball_or_strike(row):
-#         if -PLATE_HALF_WIDTH - BALL_RADIUS <= row['plate_x'] <= PLATE_HALF_WIDTH + BALL_RADIUS:
-#             szt_lim = row['sz_top'] + BALL_RADIUS
-#             szb_lim = row['sz_bot'] - BALL_RADIUS
-
-#             if szb_lim <= row['plate_z'] <= szt_lim:
-#                 return 'strike'
-        
-#         return 'ball'
-    
-#     def preprocess_data(self):
-#         # only select regular season games        
-#         df = self.raw_df[self.raw_df['game_type']=='R']
-
-#         # reset index
-#         df.reset_index(drop=True, inplace=True)
-
-#         # only select pitches where umpire made a choice
-#         df = df[df['description'].isin(['called_strike','ball'])].dropna(subset=['pitch_type','zone'])
-
-#         games = df['game_pk'].unique()
-
-#         # create game ID: umpire ID map
-#         self.ump_game_dct = ABSHelper._get_hp_ump_dct(games)
-#         ugd = self.ump_game_dct
-
-#         # create umpire ID: Name map 
-#         self.ump_name_dct = {ugd[game]['id']: ugd[game]['name'] for game in ugd}
-#         und = self.ump_game_dct
-
-#         # assign columns for umpire IDs and names
-#         df['ump_id'] = df['game_pk'].apply(lambda x: ugd[x]['id'])
-#         df['ump_name'] = df['game_pk'].apply(lambda x: ugd[x]['name'])
-
-#         # select only needed columns
-#         df = df[[
-#             'game_date', 'ump_name', 'player_name', 'ump_id', 'pitch_type', 'p_throws', 'inning', 'balls', 'strikes',
-#             'outs_when_up', 'pitcher','batter', 'stand', 'plate_x','plate_z','sz_top', 'sz_bot', 'zone', 'description',
-#         ]].copy()
-        
-#         # adjusting data types
-#         df['description'] = df['description'].map({'called_strike':'strike', 'ball':'ball'})
-#         df['balls'] = (df['balls'].astype(str) + '-' + df['strikes'].astype(str))
-#         df.loc[:, ['p_throws','stand']] = df[['p_throws','stand']] == 'R'
-
-#         # changing data types
-#         df['game_date'] = pd.to_datetime(df['game_date'])
-#         df['zone'] = df['zone'].astype(int)
-#         df['inning'] = df['inning'].astype(int)
-#         df['outs_when_up'] = df['outs_when_up'].astype(int)
-#         df['sz_top'] = df['sz_top'].astype(float)
-#         df['sz_bot'] = df['sz_bot'].astype(float)
-
-#         # renaming columns
-#         df = df.rename(columns={'description':'call', 'balls':'count', 'p_throws':'pitcher_is_rhand', 'stand':'batter_is_rhand'}).drop(columns='strikes')
-
-#         # determining if pitch was a strike or ball
-#         df['real'] = df.apply(ABSHelper._ball_or_strike, axis=1)
-#         df['correct'] = df['call'] == df['real']
-#         df['incorrect'] = ~df['correct']
-
-#         self.df = df
-
-#     def calculate_ump_zone_acc(self):
-#         self.ump_zone_acc = self.df.groupby(['ump_id', 'zone'])['correct'].mean()
-
-#     def show_ump_heatmap(self, ump_id=None, catcher_perspective=False, lg_avg=False):
-#         ump_zone_acc = self.ump_zone_acc
-#         ump_name_dct = self.ump_name_dct
-
-#         if ump_id == None:
-#             ump_id = np.random.choice(list(ump_name_dct.keys()))
-
-#         if lg_avg:
-#             zones = self.df.groupby('zone')['correct'].mean()
-#             ump_name = 'League Average'
-#         else:
-#             zones = ump_zone_acc.loc[ump_id]
-#             ump_name = ump_name_dct[ump_id]
-#         small_idx = [1,2,3,4,5,6,7,8,9]
-#         big_idx   = [11,12,13,14]
-
-#         small = zones.reindex(small_idx).to_numpy().reshape(3,3)
-#         big   = zones.reindex(big_idx).to_numpy().reshape(2,2)
-
-#         # Center point for diverging colormap
-#         # center = float(globals().get("lg_avg", np.nan))
-#         # if not np.isfinite(center):
-#         #     center = float(np.nanmean(small))
-#         center = ump_zone_acc.mean()
-
-#         norm = TwoSlopeNorm(vmin=0.50, vcenter=center, vmax=1.00)
-
-#         fig, ax = plt.subplots(figsize=(7,7))
-
-#         # Geometry (centers aligned)
-#         pad = 0.35
-#         big_extent   = [-pad, 2+pad, -pad, 2+pad]
-#         small_extent = [0, 2, 0, 2]
-
-#         # Draw heatmaps
-#         ax.imshow(big,   extent=big_extent,   origin="upper", cmap="bwr", norm=norm)
-#         im = ax.imshow(small, extent=small_extent, origin="upper", cmap="bwr", norm=norm)
-
-#         # Borders
-#         ax.plot([big_extent[0], big_extent[1]], [big_extent[2], big_extent[2]], color="k")
-#         ax.plot([big_extent[0], big_extent[1]], [big_extent[3], big_extent[3]], color="k")
-#         ax.plot([big_extent[0], big_extent[0]], [big_extent[2], big_extent[3]], color="k")
-#         ax.plot([big_extent[1], big_extent[1]], [big_extent[2], big_extent[3]], color="k")
-#         for v in [0, 2/3, 4/3, 2]:
-#             ax.plot([v, v], [0, 2], color="k")
-#             ax.plot([0, 2], [v, v], color="k")
-
-#         # Labels for 1..9
-#         zone_nums = np.array(small_idx).reshape(3,3)
-#         cell_w, cell_h = 2/3, 2/3
-#         for r in range(3):
-#             for c in range(3):
-#                 x_left  = c * cell_w
-#                 x_c     = x_left + cell_w/2
-#                 y_top   = 2 - r * cell_h
-#                 y_c     = y_top - cell_h/2
-
-#                 ax.text(x_left + 0.03, y_top - 0.03,
-#                         f"{zone_nums[r,c]}",
-#                         ha="left", va="top", fontsize=11, color="black")
-#                 ax.text(x_c, y_c,
-#                         f"{small[r,c]:.0%}",
-#                         ha="center", va="center", fontsize=12, color="black")
-
-#         # Percentages for 11–14
-#         z11, z12, z13, z14 = zones.loc[11], zones.loc[12], zones.loc[13], zones.loc[14]
-#         tab_y_top, tab_y_bottom = 2 + pad/2, -pad/2
-#         ax.text(0.5,  tab_y_top,    f"{z11:.0%}", ha="center", va="center", fontsize=12)
-#         ax.text(1.5,  tab_y_top,    f"{z12:.0%}", ha="center", va="center", fontsize=12)
-#         ax.text(0.5,  tab_y_bottom, f"{z13:.0%}", ha="center", va="center", fontsize=12)
-#         ax.text(1.5,  tab_y_bottom, f"{z14:.0%}", ha="center", va="center", fontsize=12)
-
-#         # Small zone numbers for 11–14
-#         ax.text(big_extent[0]+0.04, big_extent[3]-0.04, "11", ha="left",  va="top",    fontsize=10)
-#         ax.text(big_extent[1]-0.04, big_extent[3]-0.04, "12", ha="right", va="top",    fontsize=10)
-#         ax.text(big_extent[0]+0.04, big_extent[2]+0.04, "13", ha="left",  va="bottom", fontsize=10)
-#         ax.text(big_extent[1]-0.04, big_extent[2]+0.04, "14", ha="right", va="bottom", fontsize=10)
-
-#         # Perspective flip
-#         if not catcher_perspective:
-#             ax.invert_xaxis()
-
-#         # Colorbar
-#         cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-#         cbar.set_label("Correct call rate", rotation=270, labelpad=14)
-#         cbar.set_ticks([0.5, center, 1.0])
-#         cbar.set_ticklabels([f"0.50", f"{center:.2f}", "1.00"])
-
-#         ax.set_aspect("equal")
-#         ax.set_xticks([]); ax.set_yticks([])
-#         plt.tight_layout()
-        
-#         perspective = 'Catcher' if catcher_perspective else 'Pitcher'
-
-#         plt.title(f"{ump_name}'s Zone Accuracy - From {perspective}'s Perspective")
-#         plt.show()
-
-#     def prepare_training_data(self, target='incorrect', training_size=.75):
-#         self.target = target
-
-#         self.cat_cols = ["ump_id", "pitch_type", "count", "zone", "inning"]
-#         self.num_cols = ["outs_when_up", "pitcher_is_rhand", "batter_is_rhand", "sz_top", "sz_bot"]
-#         self.feature_cols = self.cat_cols + self.num_cols
-
-#         # Ensure datetime sort
-#         df = self.df.sort_values("game_date")#.reset_index(drop=True)
-
-#         X_all = df[self.feature_cols].copy()
-#         y_all = df[self.target].astype(int).values
-
-#         # Hold-out test split by time (e.g., last 20% as test)
-#         cut = int(len(df) * training_size)
-#         self.X_train, self.y_train = X_all.iloc[:cut], y_all[:cut]
-#         self.X_test,  self.y_test  = X_all.iloc[cut:],  y_all[cut:]
-
-#     def train_mcm(self):
-#         if not hasattr(self, "X_train"):
-#             raise ValueError("Must call prepare_training_data() before training")
-
-#         self.mcm = train_xgb(
-#             self.X_train,
-#             self.y_train,
-#             self.cat_cols,
-#             self.num_cols
-#         )
-#         return self.mcm
-    
-#     def evaluate_mcm(self):
-#         """
-#         Evaluate the Missed Call Model (mcm) on the hold-out test set.
-#         Returns a dictionary of metrics.
-#         """
-#         if not hasattr(self, "mcm"):
-#             raise ValueError("Must call train_mcm() before evaluation")
-#         if not hasattr(self, "X_test"):
-#             raise ValueError("Must call prepare_training_data() before evaluation")
-
-#         model = self.mcm.best_estimator_ if hasattr(self.mcm, "best_estimator_") else self.mcm
-
-#         probs = model.predict_proba(self.X_test)[:, 1]
-#         preds = model.predict(self.X_test)
-
-#         results = {
-#             "roc_auc": roc_auc_score(self.y_test, probs),
-#             "log_loss": log_loss(self.y_test, probs),
-#             "f1": f1_score(self.y_test, preds),
-#             "average_precision": average_precision_score(self.y_test, probs),
-#         }
-
-#         # Store results on the instance for later use
-#         self.eval_results = results
-#         return results
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import plotly.express as px
-from pybaseball import statcast
-import seaborn as sns
+# Standard library
+import json
 import requests
-from matplotlib.colors import TwoSlopeNorm
 
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit, GroupKFold, train_test_split
-from sklearn.metrics import roc_auc_score, log_loss, make_scorer
-from sklearn.linear_model import LogisticRegression
-from xgboost import XGBClassifier
-from scipy.stats import randint, loguniform, uniform
-from sklearn.metrics import f1_score, confusion_matrix, classification_report, brier_score_loss, average_precision_score
+# Third-party
 import joblib
-import sys, os, importlib
-
-
-# import sys, os
-# sys.path.append(os.path.abspath(".."))  # parent of "notebooks"
-# from .modeling.missed_call_model import train_xgb
-
-# import importlib
-# from abs_helper import modeling
-
-# importlib.reload(modeling.xgb_clf_model)
-# from abs_helper.modeling.xgb_clf_model import train_xgb, calibrate_probs
-
-
-# import sys, os
-# sys.path.append(os.path.abspath(".."))  # add TB_ABS_HELPER to sys.path
-
-# from abs_helper.modeling.xgb_clf_model import train_xgb
-# from abs_helper.modeling.xgb_clf_model import calibrate_probs
-
-# importlib.reload(abs_helper.future_states)
-# importlib.reload(abs_helper.xgb_clf_model)
-# from abs_helper.modeling.xgb_clf_model import train_xgb, calibrate_probs
-# from abs_helper.future_states import process_states, add_win_prob_future_states
-
-# Plate is 17 inches wide → half-width in feet
-PLATE_HALF_WIDTH = (17 / 2) / 12
-
-# Ball diameter ~2.86 inches → radius in feet
-BALL_RADIUS = (2.86 / 2) / 12
-
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
-import plotly.express as px
-from pybaseball import statcast
 import seaborn as sns
-import requests
+import plotly.express as px
 from matplotlib.colors import TwoSlopeNorm
+from scipy.stats import randint, loguniform, uniform
 
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit, GroupKFold, train_test_split
-from sklearn.metrics import roc_auc_score, log_loss, make_scorer
+from sklearn.model_selection import (
+    RandomizedSearchCV,
+    TimeSeriesSplit,
+    GroupKFold,
+    train_test_split
+)
+from sklearn.metrics import (
+    roc_auc_score,
+    log_loss,
+    make_scorer,
+    f1_score,
+    confusion_matrix,
+    classification_report,
+    brier_score_loss,
+    average_precision_score
+)
 from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
-from scipy.stats import randint, loguniform, uniform
-from sklearn.metrics import f1_score, confusion_matrix, classification_report, brier_score_loss, average_precision_score
-import joblib, json
 
-# import sys, os
-# sys.path.append(os.path.abspath(".."))  # parent of "notebooks"
-# from .modeling.missed_call_model import train_xgb
-
-# import importlib
-# from abs_helper import modeling
-
-# importlib.reload(modeling.xgb_clf_model)
-# from abs_helper.modeling.xgb_clf_model import train_xgb, calibrate_probs
-
-
-# import sys, os
-# sys.path.append(os.path.abspath(".."))  # add TB_ABS_HELPER to sys.path
-
-# from abs_helper.modeling.xgb_clf_model import train_xgb
-# from abs_helper.modeling.xgb_clf_model import calibrate_probs
-
-# importlib.reload(abs_helper.future_states)
-# importlib.reload(abs_helper.modeling.xgb_clf_model)
-# from abs_helper.modeling.xgb_clf_model import train_xgb, calibrate_model
-# from abs_helper.future_states import process_states, add_win_prob_future_states
+# Local modules
 from xgb_clf_model import train_xgb, calibrate_model
 from future_states import process_states, add_win_prob_future_states
 
@@ -390,6 +59,16 @@ BALL_RADIUS = (2.86 / 2) / 12
 
 
 class ABSHelper:
+    """
+    Core helper class for the Automated Ball-Strike (ABS) Challenge system.
+
+    Handles:
+    - Model and dictionary loading
+    - DataFrame preparation for predictions
+    - Adding incorrect call probability and win probability
+    - Creating future states and computing ΔWE
+    - Generating umpire zone accuracy heatmaps
+    """
 
     universal_lambda = 0.0058652361809045225
 
@@ -546,6 +225,18 @@ class ABSHelper:
         return joblib.load(path)
 
     def show_ump_heatmap(self, ump_id=None, catcher_perspective=False, ump_zone_acc=None, lg_avg=False):
+        """
+        Plot an umpire's zone accuracy heatmap.
+
+        Args:
+            ump_id (int, optional): Umpire ID to display.
+            catcher_perspective (bool): If True, view from catcher's perspective.
+            ump_zone_acc (pd.Series, optional): Zone accuracy data.
+            lg_avg (bool): Show league average instead of individual ump.
+        Returns:
+            (fig, ax): Matplotlib figure and axis.
+        """
+
         if ump_zone_acc is None:
             ump_zone_acc = self.ump_zone_acc
         ump_name_dct = self.ump_name_dct
@@ -816,6 +507,13 @@ class ABSHelper:
 
     
     def make_future_states(self):
+        """
+        Compute future possible game states for overturned/confirmed calls.
+
+        Uses `process_states` to simulate inning changes, walkoffs, etc.,
+        and then attaches win probability estimates for each new state.
+        """
+
         merged = self.merged
         feature_cols_wpm = self.feature_cols_wpm
 
@@ -941,6 +639,13 @@ class ABSHelper:
         return best_lambda
     
     def add_delta_we_col(self, lam=None):
+        """
+        Add ΔWE (change in win expectancy) to the merged DataFrame.
+
+        ΔWE is the difference between the win probability if the call
+        is overturned versus if it is upheld.
+        """
+
         df = self.merged_final
         u = df['win_prob_u']
         p = df['incorrect_call_prob']
@@ -953,7 +658,15 @@ class ABSHelper:
         df['challenge'] = df['delta_we'] > 0
         
 class ABSInterface:
+    """
+    Thin wrapper around ABSHelper for simple, user-friendly interaction.
+
+    Provides a two-step workflow:
+    1. `predict_incorrect_call_prob` → computes chance of incorrect call.
+    2. `predict_dwe` → adds game context, computes ΔWE and challenge decision.
+    """
     def __init__(self, model_path_mcm, model_path_wpm, ump_name_path, ump_zone_path):
+        
         # create an ABSHelper instance
         self.helper = ABSHelper()
         self.helper.mcm_calib = self.helper.load_model(model_path_mcm)
@@ -962,14 +675,29 @@ class ABSInterface:
         self.helper.ump_zone_acc = self.helper.load_series(ump_zone_path)
 
     def predict_incorrect_call_prob(self, feature_dct_mcm):
-        
+        """
+        Step 1: Compute probability that a call was incorrect.
+
+        Args:
+            feature_dct_mcm (dict): Dictionary of features required by MCM.
+        Returns:
+            float: Probability (%) that call was incorrect.
+        """
         self.feature_dct_mcm = feature_dct_mcm
         mc_df = pd.DataFrame([feature_dct_mcm])
         prob = round(float(self.helper.mcm_calib.predict_proba(mc_df)[:,1][0])*100, 3)
         return prob
     
     def predict_dwe(self, feature_dct_wpm):
+        """
+        Step 2: Compute ΔWE and challenge decision.
 
+        Args:
+            feature_dct_wpm (dict): Additional game context features.
+        Returns:
+            dict: { 'delta_we': float, 'challenge': bool }
+        """
+        
         self.feature_dct_all = self.feature_dct_mcm.copy()
         self.feature_dct_all.update(feature_dct_wpm)
 

@@ -1,15 +1,39 @@
-# abs_helper/modeling/xgb.py
+"""
+xgb_clf_model.py
+-----------------
+Handles XGBoost model construction, training, and calibration for the ABS Challenge system.
+
+Responsibilities:
+- Building preprocessing + XGB pipelines
+- Defining hyperparameter search distributions
+- Running RandomizedSearchCV with time-series or group splits
+- Calibrating probabilities with isotonic or sigmoid methods
+"""
+
+# Third-party
 import numpy as np
-from sklearn.pipeline import Pipeline
-from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit, GroupKFold
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.compose import ColumnTransformer
 from xgboost import XGBClassifier
+
 from sklearn.base import clone
+from sklearn.compose import ColumnTransformer
+from sklearn.model_selection import (
+    RandomizedSearchCV,
+    TimeSeriesSplit,
+    GroupKFold
+)
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.calibration import CalibratedClassifierCV
 
+
 def build_xgb_pipeline(cat_cols, num_cols):
-    """Return a preprocessing + XGB pipeline."""
+    """
+    Construct preprocessing + XGBoost pipeline.
+
+    - One-hot encodes categorical features
+    - Passes through numeric features
+    - Adds XGB classifier with reasonable defaults
+    """
     preproc = ColumnTransformer([
         ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=True), cat_cols),
         ("num", "passthrough", num_cols),
@@ -28,7 +52,11 @@ def build_xgb_pipeline(cat_cols, num_cols):
     return pipe
 
 def get_xgb_param_dist(y_train):
-    """Generate parameter grid for XGB, including scale_pos_weight."""
+    """
+    Generate hyperparameter distribution for RandomizedSearchCV.
+
+    Includes adjustments for class imbalance via scale_pos_weight.
+    """
     pos_ratio = y_train.mean()
     neg_ratio = 1 - pos_ratio
     spw = neg_ratio / pos_ratio
@@ -45,7 +73,17 @@ def get_xgb_param_dist(y_train):
     }
 
 def train_xgb(X_train, y_train, cat_cols, num_cols, n_iter=40, scoring="roc_auc"):
-    """Run RandomizedSearchCV with TimeSeriesSplit and return the fitted search object."""
+    """
+    Train an XGBClassifier with hyperparameter search.
+
+    Args:
+        X_train, y_train: Training data.
+        cat_cols, num_cols: Feature splits.
+        n_iter: Number of search iterations.
+        scoring: Metric for evaluation (default: AUC).
+    Returns:
+        Fitted RandomizedSearchCV object.
+    """
     pipe = build_xgb_pipeline(cat_cols, num_cols)
     param_dist = get_xgb_param_dist(y_train)
 
@@ -66,7 +104,11 @@ def train_xgb(X_train, y_train, cat_cols, num_cols, n_iter=40, scoring="roc_auc"
     return search
 
 def calibrate_probs(model, X_train, y_train):
-    # split off a small calibration slice from the end of TRAIN
+    """
+    Fit isotonic calibration on held-out slice of training data.
+
+    Returns calibrated model for improved probability estimates.
+    """
     cut_cal = int(len(X_train) * 0.9)
     X_core, y_core = X_train.iloc[:cut_cal], y_train[:cut_cal]
     X_cal,  y_cal  = X_train.iloc[cut_cal:], y_train[cut_cal:]
@@ -79,19 +121,27 @@ def calibrate_probs(model, X_train, y_train):
     return calib_iso
 
 def calibrate_model(model, X, y, groups=None, method="isotonic", cv_splits=5):
-        """
-        Calibrate a probabilistic model with isotonic (default) or sigmoid scaling.
-        Uses out-of-fold calibration if groups are supplied.
-        """
-        if groups is not None:
-            cv = GroupKFold(n_splits=cv_splits)
-        else:
-            cv = cv_splits  # e.g., 5 folds
+    """
+    Perform out-of-fold calibration (isotonic or sigmoid).
 
-        calibrated = CalibratedClassifierCV(
-            estimator=model,
-            method=method,
-            cv=cv
-        )
-        calibrated.fit(X, y)
-        return calibrated
+    Args:
+        model: Base model.
+        X, y: Data.
+        groups (optional): Group splits for CV.
+        method: Calibration method.
+        cv_splits: Number of folds.
+    Returns:
+        Calibrated model.
+    """
+    if groups is not None:
+        cv = GroupKFold(n_splits=cv_splits)
+    else:
+        cv = cv_splits  # e.g., 5 folds
+
+    calibrated = CalibratedClassifierCV(
+        estimator=model,
+        method=method,
+        cv=cv
+    )
+    calibrated.fit(X, y)
+    return calibrated

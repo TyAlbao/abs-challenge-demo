@@ -1,6 +1,16 @@
+"""
+future_states.py
+-----------------
+Handles state transitions in game situations for the ABS Challenge system.
+
+Responsibilities:
+- Updating game states for called strikes and walks
+- Generating next possible states (e.g., inning changes, walkoffs)
+- Adding corrected win probabilities to DataFrames
+"""
+
 import pandas as pd
 import numpy as np
-
 
 # --- Base runner maps ---
 WALK_NEW_BR_MAP = {
@@ -14,11 +24,19 @@ WALK_RUN_ADDED_MAP = {
 
 # --- Helpers ---
 def handle_strikes(df, call_mask, outs, s, inn, diff):
-    """Update DataFrame for called strikes (standing or overturned)."""
+    """
+    Update DataFrame after a called strike.
+
+    Handles:
+    - Inning-ending strikeouts
+    - At-bat-ending strikeouts
+    - Non-terminal strikes
+    Also flips inning and team perspective where necessary.
+    """
     inning_end = call_mask & (outs == 2) & (s == 2)
-    atbat_end  = call_mask & (outs <= 1) & (s == 2)
-    non_term   = call_mask & (s <= 1)
-    game_end   = inning_end & (inn >= 9) & (diff < 0)
+    atbat_end = call_mask & (outs <= 1) & (s == 2)
+    non_term = call_mask & (s <= 1)
+    game_end = inning_end & (inn >= 9) & (diff < 0)
 
     # Inning-ending
     df.loc[inning_end, ['balls','strikes','outs_when_up']] = 0
@@ -50,9 +68,17 @@ def handle_strikes(df, call_mask, outs, s, inn, diff):
 
 
 def handle_walks(df, call_mask, b, inn, tb, diff, bs):
-    """Update DataFrame for walks (standing or overturned)."""
-    walk_mask    = call_mask & (b == 3)
-    non_term     = call_mask & (b <= 2)
+    """
+    Update DataFrame after a called strike.
+
+    Handles:
+    - Inning-ending strikeouts
+    - At-bat-ending strikeouts
+    - Non-terminal strikes
+    Also flips inning and team perspective where necessary.
+    """
+    walk_mask = call_mask & (b == 3)
+    non_term = call_mask & (b <= 2)
     walkoff_mask = call_mask & (b == 3) & (inn >= 9) & \
                    (tb == 'Bot') & (diff == 0) & (bs == '111')
 
@@ -66,6 +92,18 @@ def handle_walks(df, call_mask, b, inn, tb, diff, bs):
 
 # --- Main pipeline ---
 def process_states(merged, feature_cols_wpm, cs, cb, outs, s, inn, diff, b, tb, bs):
+    """
+    Generate next possible game states given current context.
+
+    Args:
+        merged (pd.DataFrame): Input merged features.
+        feature_cols_wpm (list): Features for win prob model.
+        cs, cb: Call masks for strike/ball.
+        outs, s, inn, diff, b, tb, bs: Game context arrays.
+
+    Returns:
+        Tuple of DataFrames for upheld/overturned, inning ends, walkoffs.
+    """
     # start fresh
     S = merged[feature_cols_wpm].copy()
     O = merged[feature_cols_wpm].copy()
@@ -91,6 +129,12 @@ def process_states(merged, feature_cols_wpm, cs, cb, outs, s, inn, diff, b, tb, 
     return S, O, S_l, O_l, S_w, O_w
 
 def add_win_prob_future_states(df, wp_model, feature_cols_wpm):
+    """
+    Attach win probabilities to future states.
+
+    Corrects for inning flips (top ↔ bottom) by taking 1 - wp_raw.
+    Drops helper flag after adjustment.
+    """
     # Predict raw win probability from features
     df['wp_raw'] = wp_model.predict_proba(df[feature_cols_wpm])[:, 1]
 
