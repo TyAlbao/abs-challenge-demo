@@ -68,6 +68,13 @@ if st.button("Compute Incorrect Call Probability"):
 # -----------------------------
 if "incorrect_call_prob" in st.session_state:
     st.header("Step 2: Challenge Decision")
+    st.markdown(
+        "ℹ️ **Note:** The features you entered in Step 1 "
+        "(umpire, pitch type, pitch location, count, etc.) "
+        "are automatically carried over into this step. "
+        "Here, you’re adding the broader **game context** "
+        "needed to decide whether to challenge."
+    )
 
     inning_tb = st.selectbox("Top or Bottom", ["Top", "Bot"])
     base_state = st.selectbox("Base State (binary runners)", 
