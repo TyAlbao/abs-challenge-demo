@@ -47,8 +47,8 @@ from sklearn.linear_model import LogisticRegression
 from xgboost import XGBClassifier
 
 # Local modules
-from xgb_clf_model import train_xgb, calibrate_model
-from future_states import process_states, add_win_prob_future_states
+from .xgb_clf_model import train_xgb, calibrate_model
+from .future_states import process_states, add_win_prob_future_states
 
 
 # Plate is 17 inches wide → half-width in feet

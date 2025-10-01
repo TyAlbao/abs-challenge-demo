@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # --- Page Setup ---
 st.set_page_config(page_title="ABS Challenge Demo", layout="centered")
-st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo")
+st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo 🤖")
 
 # --- Load Interface ---
 @st.cache_resource
