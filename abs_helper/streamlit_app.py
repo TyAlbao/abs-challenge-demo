@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 
 # --- Page Setup ---
 st.set_page_config(page_title="ABS Challenge Demo", layout="centered")
-st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo 🤖")
+st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo ⚙️")
+st.caption("Note: All predictions are based on data from the 2025 MLB season.")
 
 # --- Load Interface ---
 @st.cache_resource
@@ -61,7 +62,7 @@ mcm_case = {
 if st.button("Compute Incorrect Call Probability"):
     prob = abs_ui.predict_incorrect_call_prob(mcm_case)
     st.session_state.incorrect_call_prob = prob
-    
+
 # Always show stored probability if it exists
 if "incorrect_call_prob" in st.session_state:
     st.success(f"Incorrect Call Probability: **{st.session_state.incorrect_call_prob}%**")
