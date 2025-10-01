@@ -23,7 +23,7 @@ abs_ui = load_interface()
 # -----------------------------
 # STEP 1: Incorrect Call Probability
 # -----------------------------
-st.header("Step 1: Estimate Incorrect Call Probability")
+st.header("Step 1: Estimate Incorrect Call Probability 👍👎")
 
 umpire = st.selectbox(
     "Select Umpire",
@@ -71,7 +71,7 @@ if "incorrect_call_prob" in st.session_state:
 # STEP 2: Challenge Decision
 # -----------------------------
 if "incorrect_call_prob" in st.session_state:
-    st.header("Step 2: Challenge Decision")
+    st.header("Step 2: Challenge Decision? 🤔")
     st.markdown(
         "ℹ️ **Note:** The features you entered in Step 1 "
         "(inning, outs, balls, strikes) "
@@ -106,7 +106,7 @@ if "incorrect_call_prob" in st.session_state:
 # STEP 3: Umpire Heatmap
 # -----------------------------
 if "delta_we_result" in st.session_state and "challenge_result" in st.session_state:
-    st.header("Step 3: Umpire Zone Accuracy Heatmap")
+    st.header("Step 3: Umpire Zone Accuracy Heatmap 🔥")
 
     flip_perspective = st.checkbox("Show from Catcher's Perspective?", value=False)
 
