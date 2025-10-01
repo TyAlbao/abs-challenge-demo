@@ -61,7 +61,10 @@ mcm_case = {
 if st.button("Compute Incorrect Call Probability"):
     prob = abs_ui.predict_incorrect_call_prob(mcm_case)
     st.session_state.incorrect_call_prob = prob
-    st.success(f"Incorrect Call Probability: **{prob}%**")
+    
+# Always show stored probability if it exists
+if "incorrect_call_prob" in st.session_state:
+    st.success(f"Incorrect Call Probability: **{st.session_state.incorrect_call_prob}%**")
 
 # -----------------------------
 # STEP 2: Challenge Decision
