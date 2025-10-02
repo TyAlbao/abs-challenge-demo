@@ -46,10 +46,7 @@ pitch_type_map = {
     "SL": "Slider",
     "SV": "Slurve",
     "FS": "Splitter",
-    "ST": "Sweeper",
-    # Extras in your list
-    "FA": "Fastball (unspecified)",
-    "CS": "Slow Curve"
+    "ST": "Sweeper"
 }
 
 pitch_type = st.selectbox(
