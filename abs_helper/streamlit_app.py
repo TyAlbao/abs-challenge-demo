@@ -101,8 +101,102 @@ if "incorrect_call_prob" in st.session_state:
     )
 
     inning_tb = st.selectbox("Top or Bottom", ["Top", "Bot"])
-    base_state = st.selectbox("Base State (binary runners)", 
-                              ["000","001","010","011","100","101","110","111"])
+    # base_state = st.selectbox("Base State (binary runners)", 
+    #                           ["000","001","010","011","100","101","110","111"])
+        
+            # --- Helpers for base-state <-> flags ---
+    def state_to_flags(s: str):
+        # s = "XYZ" where X=1st, Y=2nd, Z=3rd (your current encoding)
+        return {
+            "b1": s[0] == "1",
+            "b2": s[1] == "1",
+            "b3": s[2] == "1",
+        }
+
+    def flags_to_state(b1: bool, b2: bool, b3: bool) -> str:
+        return f"{int(b1)}{int(b2)}{int(b3)}"
+
+    # --- Initialize session state syncing ---
+    if "base_state" not in st.session_state:
+        st.session_state.base_state = "000"
+
+    # (A) Binary selector (still available for power users)
+    base_state_choice = st.selectbox(
+        "Base State (binary runners)",
+        ["000", "001", "010", "011", "100", "101", "110", "111"],
+        index=["000", "001", "010", "011", "100", "101", "110", "111"].index(st.session_state.base_state),
+        key="base_state_select",
+    )
+
+    # If user changed the dropdown, sync flags
+    if base_state_choice != st.session_state.base_state:
+        st.session_state.base_state = base_state_choice
+
+    # --- Build flags from current state ---
+    flags = state_to_flags(st.session_state.base_state)
+    b1, b2, b3 = flags["b1"], flags["b2"], flags["b3"]
+
+    st.markdown("#### Or click/toggle on the diamond")
+
+    # --- Draw diamond with matplotlib (visual only) ---
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Polygon, Circle
+
+    def draw_bases_fig(b1: bool, b2: bool, b3: bool):
+        fig, ax = plt.subplots(figsize=(3.2, 3.2))
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        # Diamond (square rotated 45°)
+        diamond = Polygon([[0,1], [1,2], [2,1], [1,0]], closed=True, fill=False, linewidth=2)
+        ax.add_patch(diamond)
+
+        # Base coordinates (approx)
+        pos_home = (1, 0)
+        pos_1st  = (2, 1)
+        pos_2nd  = (1, 2)
+        pos_3rd  = (0, 1)
+
+        # Draw bases as circles; fill if occupied
+        def base_circle(xy, filled):
+            c = Circle(xy, 0.12, fill=filled, linewidth=2)
+            ax.add_patch(c)
+
+        base_circle(pos_1st,  b1)
+        base_circle(pos_2nd,  b2)
+        base_circle(pos_3rd,  b3)
+        base_circle(pos_home, False)  # home for reference
+
+        ax.set_xlim(-0.2, 2.2)
+        ax.set_ylim(-0.2, 2.2)
+        return fig
+
+    fig = draw_bases_fig(b1, b2, b3)
+    st.pyplot(fig)
+
+    # --- Clickable toggles mapped to bases (sync back to state) ---
+    top = st.columns([1,2,1])
+    with top[1]:
+        b2_new = st.toggle("Runner on 2nd", value=b2, key="toggle_b2")
+
+    mid = st.columns([1,1,1])
+    with mid[0]:
+        b3_new = st.toggle("Runner on 3rd", value=b3, key="toggle_b3")
+    with mid[2]:
+        b1_new = st.toggle("Runner on 1st", value=b1, key="toggle_b1")
+
+    # If any toggle changed, update session_state.base_state and redraw
+    new_state = flags_to_state(b1_new, b2_new, b3_new)
+    if new_state != st.session_state.base_state:
+        st.session_state.base_state = new_state
+        # (Optional) live feedback badge
+        st.caption(f"Selected base state: **{st.session_state.base_state}**")
+
+    # Use the authoritative session_state value when building wpm_case
+    base_state = st.session_state.base_state
+
+
+
     team_diff = st.number_input("Batting Team Score Diff", -10, 10, -1)
 
     wpm_case = {
