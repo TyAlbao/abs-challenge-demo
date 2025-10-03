@@ -105,10 +105,10 @@ if "incorrect_call_prob" in st.session_state:
         "needed to decide whether to challenge."
     )
 
-    inning_tb = st.selectbox("Top or Bottom", ["Top", "Bot"])
+    inning_tb = st.selectbox("Top or Bottom of Inning", ["Top", "Bot"])
     base_state = st.selectbox("Base State (binary runners)", 
                               ["000","100","101","110","010","101","011","111"])
-    team_diff = st.number_input("Batting Team Score Diff", -10, 10, -1)
+    team_diff = st.number_input("Batting Team Score Differential", -10, 10, -1)
 
     wpm_case = {
         "inning_topbot": inning_tb,
