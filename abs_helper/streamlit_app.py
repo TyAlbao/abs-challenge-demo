@@ -61,9 +61,9 @@ pitch_loc = st.selectbox("Pitch Location", ["high_away", "high_middle", "high_in
                                             "low_away", "low_middle", "low_inside"])
 call = st.radio("Umpire Call", ["strike", "ball"])
 st.markdown(
-    "ℹ️ **Tip:** Use **strike** if you're on offense (batting team) - you want to challenge strikes "
-    "that should've been called balls. Use **ball** if you're on defense (pitching team) - you want to "
-    "challenge balls that should've been called strikes."
+    "ℹ️ **Tip:**\n\n"
+    "• Use **strike** if you're on offense (batting team) - you want to challenge strikes that should've been called balls.  \n"
+    "• Use **ball** if you're on defense (pitching team) - you want to challenge balls that should've been called strikes."
 )
 inning = st.number_input("Inning", min_value=1, max_value=12, value=7)
 outs = st.number_input("Outs", min_value=0, max_value=2, value=1)
