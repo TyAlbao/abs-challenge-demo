@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 # --- Page Setup ---
 st.set_page_config(page_title="ABS Challenge Demo", layout="centered")
 st.title("⚾ Automated Ball-Strike (ABS) Challenge Demo ⚙️")
-st.caption("Note: All predictions are based on data from the 2025 MLB season.")
+st.caption("All predictions are based on data from the 2025 MLB season.")
 
 # --- Load Interface ---
 @st.cache_resource
