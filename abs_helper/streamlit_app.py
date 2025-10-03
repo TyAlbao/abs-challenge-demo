@@ -101,7 +101,7 @@ if "incorrect_call_prob" in st.session_state:
         "ℹ️ **Note:** The features you entered in Step 1 "
         "(inning, outs, balls, strikes) "
         "are automatically carried over into this step. "
-        "Here, you're adding the broader **game context** "
+        "Here, you're adding the broader game context "
         "needed to decide whether to challenge."
     )
 
