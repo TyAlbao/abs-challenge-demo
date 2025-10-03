@@ -24,7 +24,7 @@ abs_ui = load_interface()
 # STEP 1: Incorrect Call Probability
 # -----------------------------
 st.header("Step 1: Estimate Incorrect Call Probability 🤔")
-st.caption("Note: All inputs should be thought of as the **pre-pitch state** (before the pitch is thrown).")
+st.markdown("ℹ️ **Note**: All inputs should be thought of as the **pre-pitch state** (before the pitch is thrown).")
 
 umpire = st.selectbox(
     "Select Umpire",
@@ -60,7 +60,7 @@ pitch_loc = st.selectbox("Pitch Location", ["high_away", "high_middle", "high_in
                                             "mid_away", "mid_middle", "mid_inside",
                                             "low_away", "low_middle", "low_inside"])
 call = st.radio("Umpire Call", ["strike", "ball"])
-st.caption(
+st.markdown(
     "ℹ️ **Tip:** Use **strike** if you're on offense (batting team) - you want to challenge strikes "
     "that should've been called balls. Use **ball** if you're on defense (pitching team) - you want to "
     "challenge balls that should've been called strikes."
