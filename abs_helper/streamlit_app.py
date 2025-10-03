@@ -24,6 +24,7 @@ abs_ui = load_interface()
 # STEP 1: Incorrect Call Probability
 # -----------------------------
 st.header("Step 1: Estimate Incorrect Call Probability 🤔")
+st.caption("Note: All inputs should be thought of as the **pre-pitch state** (before the pitch is thrown).")
 
 umpire = st.selectbox(
     "Select Umpire",
@@ -104,6 +105,8 @@ if "incorrect_call_prob" in st.session_state:
         "Here, you're adding the broader game context "
         "needed to decide whether to challenge."
     )
+    st.markdown("ℹ️ Reminder: These features (inning, outs, base state) are also from the **pre-pitch context**.")
+
 
     inning_tb = st.selectbox("Top or Bottom of Inning", ["Top", "Bot"])
     base_state = st.selectbox("Base State (binary runners)", 
